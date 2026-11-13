@@ -4,6 +4,8 @@ Carga y ejecución de casos de prueba desde un archivo .txt.
 Formato: un caso por línea
     ENTRADA[;GENERACION_FINAL_ESPERADA[;DESCRIPCION]]
 Las líneas vacías y las que comienzan con '//' se ignoran.
+Si la generación esperada es ERROR, el caso se aprueba sólo si la entrada
+es rechazada por inválida (no se ejecuta la máquina).
 
 Cada caso se ejecuta en la Máquina de Turing y se verifica que:
   1. la máquina se detenga en el estado final,
@@ -22,6 +24,8 @@ from regla110_mt import (
     decodificar_cinta, regla110_referencia, simular, validar_entrada,
 )
 
+ERROR = "ERROR"
+
 
 @dataclass
 class Caso:
@@ -29,6 +33,11 @@ class Caso:
     entrada: str
     esperado: Optional[str] = None
     descripcion: str = ""
+
+    @property
+    def espera_error(self) -> bool:
+        """La esperada ERROR indica una entrada inválida que debe rechazarse."""
+        return self.esperado is not None and self.esperado.upper() == ERROR
 
 
 @dataclass
@@ -70,7 +79,11 @@ def ejecutar_caso(caso: Caso) -> Resultado:
     try:
         k, config = validar_entrada(caso.entrada)
     except ValueError as e:
+        if caso.espera_error:
+            return Resultado(caso, True, final=f"rechazada: {e}")
         return Resultado(caso, False, errores=[f"Entrada inválida: {e}"])
+    if caso.espera_error:
+        return Resultado(caso, False, errores=["Se esperaba que la entrada fuera rechazada"])
 
     res = Resultado(caso, True, k=k, n=len(config))
     try:

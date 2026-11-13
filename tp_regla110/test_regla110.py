@@ -156,9 +156,8 @@ class TestMaquina(unittest.TestCase):
 
     def test_generacion_final_entre_los_primeros_separadores(self):
         mt, gens = self.comprobar("101#0001001101110110#")
-        self.assertEqual(mt.cinta.contenido(), "000#" + "#".join(gens[-1:] + gens[:-1]) + "#")
-        self.assertEqual(self.comprobar("11#00010000#")[0].cinta.contenido(),
-                         "00#11010000#00010000#00110000#01110000#")
+        self.assertEqual(mt.cinta.contenido(), "000#" + gens[-1] + "#")
+        self.assertEqual(self.comprobar("11#00010000#")[0].cinta.contenido(), "00#11010000#")
         self.assertNotIn("X", mt.cinta.contenido())
         self.assertNotIn("Y", mt.cinta.contenido())
 
@@ -211,6 +210,11 @@ class TestEntrada(unittest.TestCase):
         r = ejecutar_caso(Caso(1, "1#0000000#"))
         self.assertFalse(r.ok)
         self.assertIn("N ≥ 8", r.mensaje)
+
+    def test_caso_invalido_esperado(self):
+        self.assertTrue(ejecutar_caso(Caso(1, "1#0000000#", "ERROR")).ok)
+        r = ejecutar_caso(Caso(1, "1#00000000#", "ERROR"))   # válida: no debía aceptarse
+        self.assertFalse(r.ok)
 
     def test_codificar(self):
         self.assertEqual(codificar_entrada(14, "01101001"), "1110#01101001#")

@@ -3,11 +3,13 @@ Interfaz gráfica (tkinter) del simulador de la Máquina de Turing - Regla 110.
 """
 from __future__ import annotations
 
+import os
 import random
 import tkinter as tk
 from tkinter import filedialog, messagebox, ttk
 
 from maquina_turing import BLANCO
+from pruebas import cargar_casos
 from regla110_mt import (
     DELTA, DESCRIPCION, ESTADOS, N_MINIMO, Q0, codificar_entrada,
     crear_maquina, decodificar_cinta, fin_de_ciclo, regla110_referencia,
@@ -28,7 +30,7 @@ COLOR_CABEZAL = "#dc2626"
 COLOR_VIVA = "#1e293b"
 COLOR_MUERTA = "#ffffff"
 
-EJEMPLOS = {
+EJEMPLOS_POR_DEFECTO = {
     "Enunciado 1: K=4, N=15": "100#000000010000000#",
     "Enunciado 2: K=14, N=8": "1110#01101001#",
     "Ejemplo consigna (N=8, K=3)": "11#00010000#",
@@ -36,6 +38,26 @@ EJEMPLOS = {
     "Celda única, N=32, K=20": "10100#00000000000000000000000000000001#",
     "K = 0": "0#10110010#",
 }
+RUTA_CASOS = os.path.join(os.path.dirname(os.path.abspath(__file__)), "casos_prueba.txt")
+
+
+def cargar_ejemplos(ruta: str = RUTA_CASOS) -> dict[str, str]:
+    """Ejemplos del menú = los casos de casos_prueba.txt (nombre → cinta).
+    Las entradas inválidas (esperada ERROR) se marcan para mostrar el rechazo."""
+    try:
+        casos = cargar_casos(ruta)
+    except OSError:
+        return dict(EJEMPLOS_POR_DEFECTO)
+    ejemplos = {}
+    for i, caso in enumerate(casos, start=1):
+        nombre = caso.descripcion or caso.entrada
+        if caso.espera_error:
+            nombre = f"[inválida] {nombre}"
+        ejemplos[f"{i:02d}. {nombre}"] = caso.entrada
+    return ejemplos or dict(EJEMPLOS_POR_DEFECTO)
+
+
+EJEMPLOS = cargar_ejemplos()
 
 
 class Aplicacion(tk.Tk):
@@ -60,7 +82,7 @@ class Aplicacion(tk.Tk):
 
         self._estilos()
         self._construir()
-        self.cargar_en_maquina(EJEMPLOS["Enunciado 1: K=4, N=15"])
+        self.cargar_en_maquina(next(iter(EJEMPLOS.values())))
 
     # ============================================================== UI
     def _estilos(self) -> None:
@@ -107,7 +129,7 @@ class Aplicacion(tk.Tk):
         ttk.Label(caja, text="Ejemplos:").grid(row=0, column=5, sticky="e", padx=(12, 2))
         self.var_ejemplo = tk.StringVar()
         cb = ttk.Combobox(caja, textvariable=self.var_ejemplo, values=list(EJEMPLOS),
-                          state="readonly", width=28)
+                          state="readonly", width=40, height=20)
         cb.grid(row=0, column=6, sticky="w")
         cb.bind("<<ComboboxSelected>>",
                 lambda ev: self.cargar_en_maquina(EJEMPLOS[self.var_ejemplo.get()]))
@@ -297,6 +319,9 @@ class Aplicacion(tk.Tk):
         try:
             k, config = validar_entrada(cinta)
         except ValueError as e:
+            # Se deja la cinta rechazada a la vista; la máquina conserva la anterior.
+            self.var_cinta.set(cinta)
+            self.lbl_resultado.config(text=f"✘ Entrada rechazada: {e}", style="Error.TLabel")
             messagebox.showerror("Entrada inválida", str(e))
             return
         self.pausar()

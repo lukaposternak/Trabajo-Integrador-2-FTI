@@ -5,10 +5,12 @@ elemental Regla 110 con frontera cíclica.
 Formato de la cinta
 -------------------
     entrada:  K#c0 c1 ... c(N-1)#            (K en binario, N >= 8)
-    salida:   0..0#GK#G0#G1#...#G(K-1)#      (K decrementado a cero, la
+    salida:   0..0#GK#                       (K decrementado a cero y la
                                               generación final entre los
-                                              dos '#' iniciales y a su
-                                              derecha todas las anteriores)
+                                              dos '#' iniciales; durante la
+                                              ejecución la cinta registra
+                                              G0#G1#...#GK# y al final se
+                                              borra lo que sigue al 2.º '#')
 
 Alfabeto de cinta  Γ = {0, 1, X, Y, #, _}
     0, 1 : valores de celda (y bits del contador K)
@@ -41,7 +43,10 @@ Algoritmo (un ciclo por generación)
 5. Con K = 0 se marca el inicio de GK y se pasa, símbolo por símbolo, lo que
    está antes de la marca al final de la cinta: se copia el símbolo y se
    cierra su hueco con Sl. Al llegar la marca a los dos primeros '#', se la
-   quita y la máquina se detiene.
+   quita.
+6. Limpieza: se avanza hasta el segundo '#' y se borra (con blancos) todo lo
+   que le sigue: las generaciones G0..G(K-1). El cabezal vuelve a la primera
+   celda de GK y la máquina se detiene.
 """
 from __future__ import annotations
 
@@ -241,8 +246,20 @@ def _construir() -> None:
     _estado("q_trasSl", "Terminó Sl: vuelve a la última celda escrita de la cinta.")
     L(DELTA, "q_trasSl", BLANCO, "q_irIzq")
 
-    _estado("q_ajustar", "GK ya está entre los dos primeros '#': vuelve a su primera celda.")
-    L(DELTA, "q_ajustar", BITS + (SEP,), Q_FIN)
+    # ---- 6. limpieza: se borra todo lo que queda después del segundo '#'
+    _estado("q_ajustar", "GK ya está entre los dos primeros '#': avanza hasta el segundo '#'.")
+    Rx(DELTA, "q_ajustar", SEP, BITS, DER, "q_borrar")
+
+    _estado("q_borrar", "Borra (escribe blanco) todo lo que sigue al segundo '#' hasta el final de la cinta.")
+    for s in BITS + (SEP,):
+        X(DELTA, "q_borrar", s, BLANCO, DER, "q_borrar")
+    L(DELTA, "q_borrar", BLANCO, "q_volverSep")
+
+    _estado("q_volverSep", "Cinta limpia: retrocede por los blancos hasta el segundo '#'.")
+    Lx(DELTA, "q_volverSep", SEP, (BLANCO,), IZQ, "q_volverGK")
+
+    _estado("q_volverGK", "Retrocede por GK hasta el primer '#' y se para en su primera celda.")
+    Lx(DELTA, "q_volverGK", SEP, BITS, DER, Q_FIN)
 
     _estado(Q_FIN, "Estado final (aceptación): el cabezal queda sobre la primera celda de la generación K.")
 
@@ -326,12 +343,6 @@ def decodificar_cinta(contenido: str) -> Tuple[int, str, str]:
     return k, gens[-1], ""
 
 
-def generaciones_finales(contenido: str) -> List[str]:
-    """[G0, ..., GK] a partir de la cinta final 0..0#GK#G0#...#G(K-1)#."""
-    partes = contenido.split(SEP)
-    return partes[2:-1] + partes[1:2]
-
-
 def fin_de_ciclo(mt: MaquinaTuring) -> bool:
     """True justo al volver a q0 con una nueva generación cerrada en la cinta."""
     return mt.estado == Q0 and mt.ultima_clave is not None and mt.ultima_clave[0] == "q_irInicio"
@@ -353,12 +364,19 @@ def regla110_referencia(config: str, k: int) -> List[str]:
 
 
 def simular(cinta: str, max_pasos: int = 50_000_000):
-    """Ejecuta la MT sobre `cinta` hasta detenerse. Devuelve (máquina, generaciones en la cinta).
+    """Ejecuta la MT sobre `cinta` hasta detenerse. Devuelve (máquina, [G0, ..., GK]).
 
-    Lanza ValueError si la entrada es inválida.
+    Como al final la cinta sólo conserva GK, cada generación se registra al
+    cerrarse su ciclo, mientras todavía está escrita en la cinta.
+    Lanza ValueError si la entrada es inválida y RuntimeError si supera max_pasos.
     """
-    validar_entrada(cinta)
+    _, config = validar_entrada(cinta)
     mt = crear_maquina()
     mt.reiniciar(cinta.strip())
-    mt.ejecutar(max_pasos)
-    return mt, generaciones_finales(mt.cinta.contenido())
+    gens = [config]
+    while mt.paso():
+        if mt.pasos >= max_pasos:
+            raise RuntimeError(f"Se superó el límite de {max_pasos} pasos")
+        if fin_de_ciclo(mt):
+            gens.append(decodificar_cinta(mt.cinta.contenido())[1])
+    return mt, gens

@@ -34,6 +34,8 @@ def ejecutar_pruebas(ruta: str) -> int:
         print(f"[{marca}] línea {r.caso.linea:>3}  {r.caso.entrada:<45} pasos={r.pasos:<7} {r.caso.descripcion}")
         if not r.ok:
             print(f"        {r.mensaje}")
+        elif r.caso.espera_error:
+            print(f"        {r.final}")
     aprobados = sum(r.ok for r in resultados)
     print(f"\n{aprobados}/{len(resultados)} casos aprobados")
     return 0 if aprobados == len(resultados) else 1

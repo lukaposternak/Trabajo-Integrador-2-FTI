@@ -1,5 +1,6 @@
 // Casos de prueba - Máquina de Turing Regla 110
 // Formato: ENTRADA;GENERACION_FINAL_ESPERADA;DESCRIPCION
+// Si la esperada es ERROR, la entrada es inválida y la máquina debe rechazarla.
 100#000000010000000#;000111110000000;Ejemplo 1 del enunciado (K=4, N=15)
 1110#01101001#;01101110;Ejemplo 2 del enunciado (K=14, N=8)
 11#00010000#;11010000;Ejemplo de la consigna extendido a N=8 (K=3)
@@ -20,3 +21,21 @@
 10000#10011010111000110010#;11111000010111000011;N=20, K=16
 10100#00000000000000000000000000000001#;00000000000111110001101110010011;N=32, K=20: crecimiento típico de la Regla 110
 11111#000100110111110#;110001001111100;N=15, K=31 (contador 11111)
+// Casos borde
+0001#11000011#;01000110;K=1 con ceros a la izquierda, unos en ambos bordes (vecindad cíclica 1|1 1 → 0)
+1#11111110#;10000011;Todo unos salvo una celda (111→0 en el interior)
+1#01111111#;11000001;Único cero en el borde izquierdo (vecindad cíclica 1|0 1 → 1)
+1#11000001#;01000011;Vecindad 111 que cruza el borde (c7, c0, c1)
+1#0101010101010101010101010101010101010101010101010101010101010101#;1111111111111111111111111111111111111111111111111111111111111111;N=64 alternado: 010→1 y 101→1, todo pasa a 1
+1#0000000000000000000000000000000000000000000000000000000000000001#;0000000000000000000000000000000000000000000000000000000000000011;N=64: cinta larga, 1 en el borde derecho
+10000#00010011#;00010011;Ciclo: tras K=16 vuelve a la configuración inicial
+111#00010011011111#;00010011011111;Éter de la Regla 110: período 7 en N=14
+1000000#00010011#;00010011;K=64 (contador 1000000, préstamo de 6 bits): 4 ciclos completos
+// Entradas inválidas (la máquina debe rechazarlas)
+1#0000000#;ERROR;N=7: menor que el mínimo N ≥ 8
+1#00000000;ERROR;Falta el '#' final
+1#00020000#;ERROR;Símbolo distinto de 0 y 1 en la configuración
+2#00000000#;ERROR;K no está en binario
+#00000000#;ERROR;Falta el contador K
+1#0000#0000#;ERROR;'#' de más dentro de la configuración
+1##;ERROR;Configuración vacía
